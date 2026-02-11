@@ -7,20 +7,16 @@ import "./Board.css";
 export default class Board extends React.Component {
   constructor(props) {
     super(props);
-    const clients = this.getClients();
+    const clients = [];
     this.state = {
       clients: {
-        backlog: clients.filter(
-          (client) => !client.status || client.status === "backlog",
-        ),
-        inProgress: clients.filter(
-          (client) => client.status && client.status === "in-progress",
-        ),
-        complete: clients.filter(
-          (client) => client.status && client.status === "complete",
-        ),
+        backlog: [],
+        inProgress: [],
+        complete: [],
       },
     };
+    console.log("hit");
+    this.getClients();
     this.swimlanes = {
       backlog: React.createRef(),
       inProgress: React.createRef(),
@@ -34,7 +30,6 @@ export default class Board extends React.Component {
   }
 
   componentDidMount() {
-    console.log(this.backlogDragula.current);
     this.drake = Dragula(
       [
         this.backlogDragula.current,
@@ -46,6 +41,9 @@ export default class Board extends React.Component {
       },
     );
     this.drake.on("drop", (el, target) => {
+      const priority = Array.from(target.children).indexOf(el) + 1;
+      this.updateClientStatus(el.dataset.id, target.dataset.status, priority);
+      console.log(target.dataset.status);
       if (target.parentElement.children[0].innerText === "In Progress") {
         el.classList = "Card Card-blue";
       } else if (target.parentElement.children[0].innerText === "Complete") {
@@ -74,107 +72,48 @@ export default class Board extends React.Component {
   }
 
   getClients() {
-    return [
-      [
-        "1",
-        "Stark, White and Abbott",
-        "Cloned Optimal Architecture",
-        "in-progress",
-      ],
-      [
-        "2",
-        "Wiza LLC",
-        "Exclusive Bandwidth-Monitored Implementation",
-        "complete",
-      ],
-      [
-        "3",
-        "Nolan LLC",
-        "Vision-Oriented 4Thgeneration Graphicaluserinterface",
-        "backlog",
-      ],
-      [
-        "4",
-        "Thompson PLC",
-        "Streamlined Regional Knowledgeuser",
-        "in-progress",
-      ],
-      [
-        "5",
-        "Walker-Williamson",
-        "Team-Oriented 6Thgeneration Matrix",
-        "in-progress",
-      ],
-      ["6", "Boehm and Sons", "Automated Systematic Paradigm", "backlog"],
-      [
-        "7",
-        "Runolfsson, Hegmann and Block",
-        "Integrated Transitional Strategy",
-        "backlog",
-      ],
-      ["8", "Schumm-Labadie", "Operative Heuristic Challenge", "backlog"],
-      [
-        "9",
-        "Kohler Group",
-        "Re-Contextualized Multi-Tasking Attitude",
-        "backlog",
-      ],
-      ["10", "Romaguera Inc", "Managed Foreground Toolset", "backlog"],
-      ["11", "Reilly-King", "Future-Proofed Interactive Toolset", "complete"],
-      [
-        "12",
-        "Emard, Champlin and Runolfsdottir",
-        "Devolved Needs-Based Capability",
-        "backlog",
-      ],
-      [
-        "13",
-        "Fritsch, Cronin and Wolff",
-        "Open-Source 3Rdgeneration Website",
-        "complete",
-      ],
-      [
-        "14",
-        "Borer LLC",
-        "Profit-Focused Incremental Orchestration",
-        "backlog",
-      ],
-      [
-        "15",
-        "Emmerich-Ankunding",
-        "User-Centric Stable Extranet",
-        "in-progress",
-      ],
-      [
-        "16",
-        "Willms-Abbott",
-        "Progressive Bandwidth-Monitored Access",
-        "in-progress",
-      ],
-      ["17", "Brekke PLC", "Intuitive User-Facing Customerloyalty", "complete"],
-      [
-        "18",
-        "Bins, Toy and Klocko",
-        "Integrated Assymetric Software",
-        "backlog",
-      ],
-      [
-        "19",
-        "Hodkiewicz-Hayes",
-        "Programmable Systematic Securedline",
-        "backlog",
-      ],
-      ["20", "Murphy, Lang and Ferry", "Organized Explicit Access", "backlog"],
-    ].map((companyDetails) => ({
-      id: companyDetails[0],
-      name: companyDetails[1],
-      description: companyDetails[2],
-      status: companyDetails[3],
-    }));
+    return fetch("http://localhost:3001/api/v1/clients")
+      .then((response) => response.json())
+      .then((data) => data.sort((a, b) => a.priority - b.priority))
+      .then((data) =>
+        this.setState({
+          clients: {
+            backlog: data.filter(
+              (client) => !client.status || client.status === "backlog",
+            ),
+            inProgress: data.filter(
+              (client) => client.status && client.status === "in-progress",
+            ),
+            complete: data.filter(
+              (client) => client.status && client.status === "complete",
+            ),
+          },
+        }),
+      )
+      .then(() => console.log(this.state.clients));
   }
 
-  renderSwimlane(name, clients, ref) {
-    return <Swimlane name={name} clients={clients} dragulaRef={ref} />;
+  updateClientStatus(clientID, newStatus, newPriority) {
+    return fetch(`http://localhost:3001/api/v1/clients/${clientID}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: newStatus, priority: newPriority }),
+    })
+      .then((response) => response.json())
+      .catch((error) => console.error("Error updating client status:", error));
+  }
+
+  renderSwimlane(name, clients, ref, parentStatus) {
+    return (
+      <Swimlane
+        name={name}
+        clients={clients}
+        dragulaRef={ref}
+        parentStatus={parentStatus}
+      />
+    );
   }
 
   render() {
@@ -187,6 +126,7 @@ export default class Board extends React.Component {
                 "Backlog",
                 this.state.clients.backlog,
                 this.backlogDragula,
+                "backlog",
               )}
             </div>
             <div className="col-md-4">
@@ -194,6 +134,7 @@ export default class Board extends React.Component {
                 "In Progress",
                 this.state.clients.inProgress,
                 this.inProgressDragula,
+                "in-progress",
               )}
             </div>
             <div className="col-md-4">
@@ -201,6 +142,7 @@ export default class Board extends React.Component {
                 "Complete",
                 this.state.clients.complete,
                 this.completeDragula,
+                "complete",
               )}
             </div>
           </div>
