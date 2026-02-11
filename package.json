@@ -10,6 +10,7 @@
     "bootstrap": "^4.2.1",
     "dragula": "^3.7.2",
     "jquery": "^3.3.1",
+    "nvm": "^0.0.4",
     "popper.js": "^1.14.7",
     "react": "^16.7.0",
     "react-dom": "^16.7.0",
